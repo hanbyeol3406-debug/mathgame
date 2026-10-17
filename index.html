@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>브롤 매스 스타즈 (Brawl Math Stars)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #111827;
+            color: #ffffff;
+            touch-action: none;
+            overflow: hidden;
+            user-select: none;
+        }
+        .font-brawl {
+            font-family: 'Black Han Sans', sans-serif;
+            text-shadow: 3px 3px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0px 4px 5px rgba(0,0,0,0.8);
+        }
+        .brawl-btn {
+            background: linear-gradient(180deg, #ffca28 0%, #ff8f00 100%);
+            border: 4px solid #000;
+            box-shadow: inset 0px 3px 0px rgba(255,255,255,0.5), 0px 6px 0px #b26a00;
+            text-shadow: 2px 2px 0px #000;
+            transition: all 0.1s ease;
+        }
+        .brawl-btn:active {
+            transform: translateY(4px);
+            box-shadow: inset 0px 3px 0px rgba(255,255,255,0.5), 0px 2px 0px #b26a00;
+        }
+        .brawl-card {
+            border: 4px solid #000;
+            box-shadow: 0px 6px 0px rgba(0,0,0,0.5);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #f59e0b; rounded: 4px; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center relative overflow-hidden bg-slate-900">
+
+    <div id="game-ui" class="absolute inset-0 pointer-events-none z-10 hidden flex-col justify-between p-4">
+        <!-- Top Stats Bar -->
+        <div class="flex justify-between items-start w-full max-w-4xl mx-auto pointer-events-auto">
+            <!-- Health & Character Info -->
+            <div class="flex items-center gap-3 bg-slate-900/90 border-2 border-black p-2 rounded-2xl shadow-lg">
+                <div id="hud-avatar" class="w-12 h-12 rounded-xl border-2 border-black flex items-center justify-center text-2xl font-bold bg-amber-500">
+                    🤠
+                </div>
+                <div>
+                    <div class="flex items-center justify-between gap-2">
+                        <span id="hud-name" class="font-brawl text-lg text-yellow-400">COLT</span>
+                        <span id="hud-lvl" class="text-xs bg-yellow-500 text-black px-2 py-0.5 rounded-full font-bold">Power 1</span>
+                    </div>
+                    <!-- HP Bar -->
+                    <div class="w-36 h-4 bg-gray-800 border border-black rounded-full overflow-hidden relative mt-1">
+                        <div id="hud-hp-bar" class="h-full bg-emerald-500 transition-all duration-200" style="width: 100%;"></div>
+                        <span id="hud-hp-text" class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">3000 / 3000</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Score & Kills -->
+            <div class="flex gap-3">
+                <div class="bg-slate-900/90 border-2 border-black px-4 py-2 rounded-2xl text-center">
+                    <div class="text-xs text-gray-400 font-bold">처치한 악당</div>
+                    <div id="hud-kills" class="font-brawl text-2xl text-red-500">0</div>
+                </div>
+                <div class="bg-slate-900/90 border-2 border-black px-4 py-2 rounded-2xl text-center">
+                    <div class="text-xs text-gray-400 font-bold">수학 파워업</div>
+                    <div id="hud-powerups" class="font-brawl text-2xl text-cyan-400">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ultimate Skill Button (Mobile/Tactile UI) -->
+        <div class="flex justify-end items-end w-full max-w-4xl mx-auto mb-4 pointer-events-auto gap-4">
+            <button id="super-btn" class="w-20 h-20 bg-gradient-to-tr from-amber-600 to-yellow-300 border-4 border-black rounded-full flex flex-col items-center justify-center text-white shadow-2xl transition-transform active:scale-95 disabled:opacity-40 disabled:grayscale">
+                <i class="fa-solid font-brawl text-2xl fa-bolt"></i>
+                <span class="text-[10px] font-brawl">SUPER</span>
+            </button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" class="w-full h-full block bg-slate-950"></canvas>
+
+    <div id="lobby-screen" class="absolute inset-0 z-20 flex flex-col items-center justify-between p-6 bg-gradient-to-b from-indigo-950 via-slate-900 to-black overflow-y-auto">
+        <!-- Title -->
+        <div class="text-center my-4">
+            <h1 class="font-brawl text-5xl md:text-7xl text-yellow-400 tracking-wider mb-1 drop-shadow-lg">
+                BRAWL <span class="text-cyan-400">MATH</span> STARS
+            </h1>
+            <p class="text-gray-300 font-bold text-sm md:text-base">악당을 소탕하고 수학 문제를 풀어 무한 파워업을 획득하세요!</p>
+        </div>
+
+        <!-- Character Selection Slider/Grid -->
+        <div class="w-full max-w-4xl my-auto">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="font-brawl text-2xl text-white">브롤러 선택 (총 10종)</h2>
+                <span id="selected-char-type" class="text-xs px-3 py-1 bg-yellow-500 text-black font-bold rounded-full">원거리 공격형</span>
+            </div>
+
+            <!-- Brawler Carousel / Grid -->
+            <div id="brawler-grid" class="grid grid-cols-2 sm:grid-cols-5 gap-3 max-h-[40vh] overflow-y-auto p-2 bg-slate-900/60 rounded-2xl border-2 border-slate-700">
+                <!-- Javascript will inject 10 brawler cards here -->
+            </div>
+
+            <!-- Difficulty Selection -->
+            <div class="mt-6 flex flex-col items-center">
+                <span class="text-sm font-bold text-gray-300 mb-2">수학 문제 난이도 선택</span>
+                <div class="flex gap-2">
+                    <button class="diff-btn px-4 py-2 rounded-xl font-bold border-2 border-black bg-emerald-600 text-white" data-diff="easy">쉬움 (초등 연산)</button>
+                    <button class="diff-btn px-4 py-2 rounded-xl font-bold border-2 border-black bg-slate-700 text-gray-300" data-diff="medium">보통 (중등 방정식)</button>
+                    <button class="diff-btn px-4 py-2 rounded-xl font-bold border-2 border-black bg-slate-700 text-gray-300" data-diff="hard">어려움 (고등 인수분해)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Game Button -->
+        <div class="w-full max-w-md my-4">
+            <button id="start-game-btn" class="w-full py-5 text-3xl font-brawl text-white rounded-2xl brawl-btn uppercase tracking-wider">
+                BRAWL START!
+            </button>
+        </div>
+    </div>
+
+    <div id="math-modal" class="absolute inset-0 z-30 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border-4 border-yellow-400 rounded-3xl p-6 sm:p-8 w-full max-w-lg text-center shadow-2xl relative animate-bounce-short">
+            <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-6 py-1 rounded-full font-brawl text-lg border-2 border-black">
+                🎁 POWER UP QUIZ!
+            </div>
+            
+            <h3 class="text-gray-300 font-bold text-sm mt-2">악당 처치 보너스! 문제를 맞추면 스킬이 강화됩니다.</h3>
+            
+            <!-- Math Problem Display -->
+            <div id="quiz-question" class="my-6 text-3xl sm:text-4xl font-black text-white bg-slate-950 p-6 rounded-2xl border-2 border-slate-700 font-mono tracking-wide">
+                12 + 25 = ?
+            </div>
+
+            <!-- Answer Options -->
+            <div id="quiz-options" class="grid grid-cols-2 gap-3 mb-4">
+                <!-- Option buttons injected by JS -->
+            </div>
+
+            <!-- Quiz Timer Bar -->
+            <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700">
+                <div id="quiz-timer-bar" class="bg-yellow-400 h-full w-full transition-all duration-100 linear"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="gift-modal" class="absolute inset-0 z-40 bg-black/70 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border-4 border-cyan-400 rounded-3xl p-6 w-full max-w-md text-center shadow-2xl relative">
+            <div class="text-5xl mb-2">⚡</div>
+            <h2 class="font-brawl text-3xl text-cyan-400 mb-1">SKILL UPGRADE!</h2>
+            <p id="gift-description" class="text-lg font-bold text-white my-4 bg-slate-800 p-4 rounded-xl border border-slate-700">
+                공격력이 +25% 증가했습니다!
+            </p>
+            <button id="gift-claim-btn" class="w-full py-3 text-xl font-brawl text-black bg-cyan-400 hover:bg-cyan-300 border-2 border-black rounded-xl">
+                확인 (전투 계속)
+            </button>
+        </div>
+    </div>
+
+    <div id="gameover-modal" class="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border-4 border-red-600 rounded-3xl p-8 w-full max-w-md text-center shadow-2xl">
+            <h2 class="font-brawl text-5xl text-red-500 mb-2">DEFEAT!</h2>
+            <p class="text-gray-400 font-bold mb-6">체력이 모두 소진되었습니다.</p>
+            
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 mb-6 space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">처치한 악당 수:</span>
+                    <span id="end-kills" class="font-bold text-white">0</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">맞춘 수학 문제:</span>
+                    <span id="end-powerups" class="font-bold text-cyan-400">0</span>
+                </div>
+            </div>
+
+            <button id="restart-btn" class="w-full py-4 text-2xl font-brawl text-white rounded-xl brawl-btn">
+                로비로 돌아가기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* -------------------------------------------------------------------------- */
+        /* 1. BRAWLER DATA (10+ Characters)                                           */
+        /* -------------------------------------------------------------------------- */
+        const BRAWLERS = [
+            { id: 'colt', name: '콜트', emoji: '🤠', color: '#3b82f6', hp: 2800, speed: 4.5, dmg: 350, reload: 25, type: '연사 총잡이', super: '대형 총탄 난사' },
+            { id: 'shelly', name: '쉘리', emoji: '👩‍🦱', color: '#a855f7', hp: 3600, speed: 4.2, dmg: 220, bullets: 5, reload: 35, type: '산탄 총잡이', super: '근접 포탄 발사' },
+            { id: 'el_primo', name: '엘 프리모', emoji: '🥊', color: '#ef4444', hp: 5500, speed: 4.8, dmg: 480, range: 70, reload: 20, type: '근접 탱커', super: '메테오 드롭' },
+            { id: 'poco', name: '포코', emoji: '💀', color: '#10b981', hp: 3800, speed: 4.0, dmg: 400, reload: 30, type: '힐러 딜러', super: '아군/자신 아군 힐' },
+            { id: 'spike', name: '스파이크', emoji: '🌵', color: '#22c55e', hp: 2400, speed: 4.3, dmg: 520, reload: 32, type: '가시 저격수', super: '가시 장판 생성' },
+            { id: 'crow', name: '크로우', emoji: '🦅', color: '#64748b', hp: 2400, speed: 5.2, dmg: 280, reload: 22, type: '암살자', super: '독 단검 다중 발사' },
+            { id: 'leon', name: '레온', emoji: '🦎', color: '#84cc16', hp: 3200, speed: 5.0, dmg: 440, reload: 26, type: '은신 암살자', super: '은신 및 속도 증가' },
+            { id: 'barley', name: '발리', emoji: '🤖', color: '#f59e0b', hp: 2600, speed: 4.0, dmg: 380, reload: 35, type: '화염병 투척수', super: '화염 바다 생성' },
+            { id: 'amber', name: '엠버', emoji: '🔥', color: '#f97316', hp: 3000, speed: 4.4, dmg: 180, reload: 10, type: '화염 방사기', super: '기름 장판 투척' },
+            { id: 'meg', name: '메그', emoji: '👧', color: '#ec4899', hp: 2200, speed: 4.6, dmg: 300, reload: 24, type: '로봇 탑승사', super: '거대 로봇 변신' }
+        ];
+
+        /* -------------------------------------------------------------------------- */
+        /* 2. GAME STATE & VARIABLES                                                  */
+        /* -------------------------------------------------------------------------- */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let selectedBrawler = BRAWLERS[0];
+        let mathDifficulty = 'easy';
+        let isPlaying = false;
+
+        let player = null;
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let powerCrates = [];
+        let keys = {};
+        let mousePos = { x: 0, y: 0 };
+        
+        let kills = 0;
+        let powerupsCount = 0;
+        let superGauge = 0; // 0 to 100
+        let currentQuiz = null;
+        let quizTimer = null;
+
+        /* -------------------------------------------------------------------------- */
+        /* 3. INITIALIZATION & UI HANDLERS                                           */
+        /* -------------------------------------------------------------------------- */
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+
+        // Render Brawler Cards in Lobby
+        const brawlerGrid = document.getElementById('brawler-grid');
+        BRAWLERS.forEach((brawler, index) => {
+            const card = document.createElement('div');
+            card.className = `brawler-card p-3 bg-slate-800 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-700 ${index === 0 ? 'ring-4 ring-yellow-400 bg-slate-700' : ''}`;
+            card.innerHTML = `
+                <div class="text-3xl mb-1">${brawler.emoji}</div>
+                <div class="font-brawl text-sm text-white">${brawler.name}</div>
+                <div class="text-[10px] text-gray-400">${brawler.type}</div>
+            `;
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.brawler-card').forEach(c => c.classList.remove('ring-4', 'ring-yellow-400', 'bg-slate-700'));
+                card.classList.add('ring-4', 'ring-yellow-400', 'bg-slate-700');
+                selectedBrawler = brawler;
+                document.getElementById('selected-char-type').textContent = brawler.type;
+            });
+            brawlerGrid.appendChild(card);
+        });
+
+        // Difficulty Selection
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.diff-btn').forEach(b => {
+                    b.classList.remove('bg-emerald-600', 'text-white');
+                    b.classList.add('bg-slate-700', 'text-gray-300');
+                });
+                e.target.classList.remove('bg-slate-700', 'text-gray-300');
+                e.target.classList.add('bg-emerald-600', 'text-white');
+                mathDifficulty = e.target.dataset.diff;
+            });
+        });
+
+        // Input Listeners
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+        window.addEventListener('mousemove', e => {
+            mousePos.x = e.clientX;
+            mousePos.y = e.clientY;
+        });
+
+        // Shooting Listener
+        window.addEventListener('mousedown', (e) => {
+            if (isPlaying && e.target === canvas) {
+                shootBullet();
+            }
+        });
+
+        document.getElementById('start-game-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            document.getElementById('gameover-modal').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.remove('hidden');
+        });
+
+        document.getElementById('super-btn').addEventListener('click', useSuperAbility);
+
+        /* -------------------------------------------------------------------------- */
+        /* 4. GAME ENGINE & LOOPS                                                     */
+        /* -------------------------------------------------------------------------- */
+        function startGame() {
+            document.getElementById('lobby-screen').classList.add('hidden');
+            document.getElementById('game-ui').classList.remove('hidden');
+            document.getElementById('game-ui').classList.add('flex');
+
+            // Reset Game Stats
+            kills = 0;
+            powerupsCount = 0;
+            superGauge = 0;
+            bullets = [];
+            enemies = [];
+            particles = [];
+            powerCrates = [];
+
+            // Initialize Player Character
+            player = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                radius: 24,
+                color: selectedBrawler.color,
+                emoji: selectedBrawler.emoji,
+                maxHp: selectedBrawler.hp,
+                hp: selectedBrawler.hp,
+                speed: selectedBrawler.speed,
+                dmg: selectedBrawler.dmg,
+                reloadCooldown: 0,
+                multiShot: 1, // Upgradeable
+                lvl: 1
+            };
+
+            updateHUD();
+            isPlaying = true;
+
+            // Spawn Initial Enemies & Crates
+            for(let i=0; i<3; i++) spawnEnemy();
+            for(let i=0; i<2; i++) spawnCrate();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 5. PLAYER SHOOTING & ENEMY LOGIC                                           */
+        /* -------------------------------------------------------------------------- */
+        function shootBullet() {
+            if (!player || player.reloadCooldown > 0) return;
+
+            const angle = Math.atan2(mousePos.y - player.y, mousePos.x - player.x);
+            
+            // Multishot logic
+            const count = player.multiShot;
+            const spread = 0.15;
+            for (let i = 0; i < count; i++) {
+                const finalAngle = angle + (i - (count - 1) / 2) * spread;
+                bullets.push({
+                    x: player.x,
+                    y: player.y,
+                    vx: Math.cos(finalAngle) * 12,
+                    vy: Math.sin(finalAngle) * 12,
+                    radius: 6,
+                    dmg: player.dmg,
+                    color: '#f59e0b',
+                    isSuper: false
+                });
+            }
+
+            player.reloadCooldown = selectedBrawler.reload;
+        }
+
+        function useSuperAbility() {
+            if (superGauge < 100) return;
+
+            superGauge = 0;
+            updateHUD();
+
+            // Fire powerful ring of bullets
+            const total = 16;
+            for (let i = 0; i < total; i++) {
+                const angle = (Math.PI * 2 / total) * i;
+                bullets.push({
+                    x: player.x,
+                    y: player.y,
+                    vx: Math.cos(angle) * 15,
+                    vy: Math.sin(angle) * 15,
+                    radius: 12,
+                    dmg: player.dmg * 2.5,
+                    color: '#ef4444',
+                    isSuper: true
+                });
+            }
+        }
+
+        function spawnEnemy() {
+            const edge = Math.floor(Math.random() * 4);
+            let x, y;
+            if (edge === 0) { x = Math.random() * canvas.width; y = -30; }
+            else if (edge === 1) { x = canvas.width + 30; y = Math.random() * canvas.height; }
+            else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + 30; }
+            else { x = -30; y = Math.random() * canvas.height; }
+
+            const types = [
+                { name: '보스 악당', hp: 1200, speed: 2.0, radius: 30, color: '#dc2626', emoji: '👹' },
+                { name: '돌진 로봇', hp: 600, speed: 3.2, radius: 20, color: '#f97316', emoji: '🤖' },
+                { name: '해골 브롤러', hp: 400, speed: 2.8, radius: 18, color: '#8b5cf6', emoji: '💀' }
+            ];
+            const t = types[Math.floor(Math.random() * types.length)];
+
+            enemies.push({
+                x, y,
+                hp: t.hp,
+                maxHp: t.hp,
+                speed: t.speed,
+                radius: t.radius,
+                color: t.color,
+                emoji: t.emoji
+            });
+        }
+
+        function spawnCrate() {
+            powerCrates.push({
+                x: Math.random() * (canvas.width - 200) + 100,
+                y: Math.random() * (canvas.height - 200) + 100,
+                radius: 20,
+                hp: 500,
+                maxHp: 500
+            });
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 6. MATH QUIZ SYSTEM & POWER-UPS                                            */
+        /* -------------------------------------------------------------------------- */
+        function generateMathProblem() {
+            let question = "", answer = 0, options = [];
+
+            if (mathDifficulty === 'easy') {
+                const a = Math.floor(Math.random() * 50) + 10;
+                const b = Math.floor(Math.random() * 50) + 10;
+                const isPlus = Math.random() > 0.5;
+                question = `${a} ${isPlus ? '+' : '-'} ${b} = ?`;
+                answer = isPlus ? a + b : a - b;
+            } else if (mathDifficulty === 'medium') {
+                const x = Math.floor(Math.random() * 12) + 1;
+                const a = Math.floor(Math.random() * 8) + 2;
+                const b = Math.floor(Math.random() * 20) + 1;
+                question = `${a}x + ${b} = ${a * x + b} (x = ?)`;
+                answer = x;
+            } else {
+                // Hard: Factoring or quadratic roots
+                const a = Math.floor(Math.random() * 5) + 1;
+                const b = Math.floor(Math.random() * 5) + 1;
+                question = `x² + ${a+b}x + ${a*b} 의 인수는?`;
+                answer = `(x+${a})`;
+                options = [`(x+${a})`, `(x-${a})`, `(x+${a+1})`, `(x-${b})`].sort(() => Math.random() - 0.5);
+            }
+
+            if (options.length === 0) {
+                options = [answer];
+                while (options.length < 4) {
+                    const offset = (Math.floor(Math.random() * 5) + 1) * (Math.random() > 0.5 ? 1 : -1);
+                    const wrong = answer + offset;
+                    if (!options.includes(wrong)) options.push(wrong);
+                }
+                options.sort(() => Math.random() - 0.5);
+            }
+
+            return { question, answer, options };
+        }
+
+        function triggerMathQuiz() {
+            isPlaying = false; // Pause battle
+            currentQuiz = generateMathProblem();
+
+            const modal = document.getElementById('math-modal');
+            const qEl = document.getElementById('quiz-question');
+            const optsEl = document.getElementById('quiz-options');
+
+            qEl.textContent = currentQuiz.question;
+            optsEl.innerHTML = '';
+
+            currentQuiz.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "py-4 bg-slate-800 hover:bg-yellow-500 hover:text-black border-2 border-slate-700 text-white font-bold rounded-2xl text-xl transition-all";
+                btn.textContent = opt;
+                btn.addEventListener('click', () => handleQuizAnswer(opt));
+                optsEl.appendChild(btn);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function handleQuizAnswer(selected) {
+            document.getElementById('math-modal').classList.add('hidden');
+
+            if (String(selected) === String(currentQuiz.answer)) {
+                // Correct Answer! Grant Random Skill Upgrade Gift
+                powerupsCount++;
+                const upgrades = [
+                    { name: '공격력 대폭 상승!', apply: () => player.dmg = Math.round(player.dmg * 1.3) },
+                    { name: '이동 속도 증가!', apply: () => player.speed += 0.8 },
+                    { name: '체력 풀 회복!', apply: () => player.hp = player.maxHp },
+                    { name: '멀티샷 파워업! (+1 발사체)', apply: () => player.multiShot += 1 }
+                ];
+                const up = upgrades[Math.floor(Math.random() * upgrades.length)];
+                up.apply();
+
+                player.lvl++;
+
+                // Show Gift Modal
+                document.getElementById('gift-description').textContent = `${up.name} (현재 파워 레벨: Lv.${player.lvl})`;
+                document.getElementById('gift-modal').classList.remove('hidden');
+
+                document.getElementById('gift-claim-btn').onclick = () => {
+                    document.getElementById('gift-modal').classList.add('hidden');
+                    isPlaying = true;
+                    requestAnimationFrame(gameLoop);
+                };
+            } else {
+                // Wrong Answer
+                isPlaying = true;
+                requestAnimationFrame(gameLoop);
+            }
+
+            updateHUD();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 7. MAIN GAME LOOP & RENDER                                                 */
+        /* -------------------------------------------------------------------------- */
+        function gameLoop() {
+            if (!isPlaying) return;
+
+            if (keys['w'] || keys['arrowup']) player.y -= player.speed;
+            if (keys['s'] || keys['arrowdown']) player.y += player.speed;
+            if (keys['a'] || keys['arrowleft']) player.x -= player.speed;
+            if (keys['d'] || keys['arrowright']) player.x += player.speed;
+
+            // Canvas Boundary Constraints
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+
+            if (player.reloadCooldown > 0) player.reloadCooldown--;
+
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid Lines (Brawl Arena Vibe)
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            for (let x = 0; x < canvas.width; x += 60) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 60) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // Draw Power Crates
+            powerCrates.forEach((crate, cIndex) => {
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(crate.x - crate.radius, crate.y - crate.radius, crate.radius * 2, crate.radius * 2);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.strokeRect(crate.x - crate.radius, crate.y - crate.radius, crate.radius * 2, crate.radius * 2);
+                
+                // HP Bar
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(crate.x - crate.radius, crate.y - crate.radius - 8, crate.radius * 2, 4);
+                ctx.fillStyle = '#10b981';
+                ctx.fillRect(crate.x - crate.radius, crate.y - crate.radius - 8, (crate.radius * 2) * (crate.hp / crate.maxHp), 4);
+            });
+
+            bullets.forEach((bullet, bIndex) => {
+                bullet.x += bullet.vx;
+                bullet.y += bullet.vy;
+
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                ctx.fillStyle = bullet.color;
+                ctx.fill();
+
+                // Check Crate Collision
+                powerCrates.forEach((crate, cIndex) => {
+                    const dist = Math.hypot(bullet.x - crate.x, bullet.y - crate.y);
+                    if (dist < bullet.radius + crate.radius) {
+                        crate.hp -= bullet.dmg;
+                        bullets.splice(bIndex, 1);
+                        if (crate.hp <= 0) {
+                            powerCrates.splice(cIndex, 1);
+                            triggerMathQuiz();
+                        }
+                    }
+                });
+
+                // Check Enemy Collision
+                enemies.forEach((enemy, eIndex) => {
+                    const dist = Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y);
+                    if (dist < bullet.radius + enemy.radius) {
+                        enemy.hp -= bullet.dmg;
+                        bullets.splice(bIndex, 1);
+
+                        // Charge Super Gauge
+                        superGauge = Math.min(100, superGauge + 8);
+                        updateHUD();
+
+                        if (enemy.hp <= 0) {
+                            enemies.splice(eIndex, 1);
+                            kills++;
+                            updateHUD();
+
+                            // Trigger Math Quiz on Villain Kill!
+                            triggerMathQuiz();
+
+                            // Respawn 1-2 new enemies
+                            setTimeout(spawnEnemy, 1500);
+                            if (Math.random() > 0.5) setTimeout(spawnEnemy, 2500);
+                        }
+                    }
+                });
+            });
+
+            enemies.forEach((enemy) => {
+                const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                enemy.x += Math.cos(angle) * enemy.speed;
+                enemy.y += Math.sin(angle) * enemy.speed;
+
+                // Draw Enemy Body
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                ctx.fillStyle = enemy.color;
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#000';
+                ctx.stroke();
+
+                // Draw Emoji Avatar
+                ctx.font = `${enemy.radius * 1.2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(enemy.emoji, enemy.x, enemy.y);
+
+                // Enemy HP Bar
+                ctx.fillStyle = '#000';
+                ctx.fillRect(enemy.x - 20, enemy.y - enemy.radius - 12, 40, 6);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(enemy.x - 20, enemy.y - enemy.radius - 12, 40 * (enemy.hp / enemy.maxHp), 6);
+
+                // Enemy Player Collision
+                const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                if (dist < player.radius + enemy.radius) {
+                    player.hp -= 10;
+                    updateHUD();
+
+                    if (player.hp <= 0) {
+                        gameOver();
+                    }
+                }
+            });
+
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            
+            // Aim line to mouse
+            const aimAngle = Math.atan2(mousePos.y - player.y, mousePos.x - player.x);
+            ctx.rotate(aimAngle);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fillRect(0, -2, 100, 4);
+
+            ctx.restore();
+
+            // Character Circle Body
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = player.color;
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+
+            // Emoji
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(player.emoji, player.x, player.y);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 8. HUD & GAME OVER LOGIC                                                   */
+        /* -------------------------------------------------------------------------- */
+        function updateHUD() {
+            if (!player) return;
+
+            document.getElementById('hud-avatar').textContent = selectedBrawler.emoji;
+            document.getElementById('hud-name').textContent = selectedBrawler.name;
+            document.getElementById('hud-lvl').textContent = `Power ${player.lvl}`;
+
+            const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
+            document.getElementById('hud-hp-bar').style.width = `${hpPercent}%`;
+            document.getElementById('hud-hp-text').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
+
+            document.getElementById('hud-kills').textContent = kills;
+            document.getElementById('hud-powerups').textContent = powerupsCount;
+
+            // Update Super Button
+            const superBtn = document.getElementById('super-btn');
+            if (superGauge >= 100) {
+                superBtn.disabled = false;
+                superBtn.classList.add('animate-pulse');
+            } else {
+                superBtn.disabled = true;
+                superBtn.classList.remove('animate-pulse');
+            }
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            document.getElementById('end-kills').textContent = kills;
+            document.getElementById('end-powerups').textContent = powerupsCount;
+            document.getElementById('gameover-modal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
